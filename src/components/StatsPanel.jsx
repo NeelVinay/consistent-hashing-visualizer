@@ -90,7 +90,7 @@ export default function StatsPanel({
             sub={diff ? 'after last action' : 'no action yet'}
             tone={movedFraction === null ? undefined : movedFraction > 0.5 ? 'hot' : 'cool'}
           />
-          {lastAction === 'add' && absorbed?.length ? (
+          {mode === 'consistent' && lastAction === 'add' && absorbed?.length ? (
             <Readout
               label="Landed on"
               value={absorbed[0].serverId.replace('server-', 'srv ')}
