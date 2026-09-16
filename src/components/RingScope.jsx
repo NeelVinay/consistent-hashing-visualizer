@@ -115,15 +115,12 @@ function VirtualNodeMarks({ points }) {
   );
 }
 
-export default function RingScope({
-  points,
-  keyPlacements,
-  movedKeys,
-  showVnodes,
-  mode,
-  centerReadout,
-}) {
+export default function RingScope({ points, keyPlacements, movedKeys, mode, centerReadout }) {
   const consistent = mode === 'consistent';
+  // Individual node ticks stop being readable long before they stop being
+  // drawable, so fade them out as the ring fills rather than asking the visitor
+  // to manage a toggle they have no basis to decide on.
+  const showVnodes = points.length <= 600;
 
   return (
     <div className="scope-wrap">

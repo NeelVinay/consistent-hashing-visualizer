@@ -21,6 +21,13 @@ export default function Explainer() {
           in front of it.
         </p>
         <p>
+          <b>What replication adds:</b> real stores keep several copies of every key,
+          on the next few <i>distinct</i> servers clockwise. Turn it up and a failure stops
+          being about loss and starts being about repair: nothing goes dark, the new primary
+          is a server that already held the data, and the only real cost is re-making enough
+          copies to get back to the target count.
+        </p>
+        <p>
           <b>Why virtual nodes:</b> with one point per server, a server owns one big arc &mdash;
           and a few random points never divide a circle evenly, so the load is lopsided before
           anything even fails. Worse, when that server dies, its single arc merges into exactly one

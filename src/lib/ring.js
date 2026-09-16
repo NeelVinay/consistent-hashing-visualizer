@@ -34,8 +34,7 @@ export function buildRing(serverIds, vnodeCount) {
  * Returns the point itself (not just the server id) so callers can show which
  * virtual node claimed a key.
  */
-export function lookup(points, position) {
-  if (points.length === 0) return null;
+export function lookupIndex(points, position) {
   let low = 0;
   let high = points.length;
   while (low < high) {
@@ -43,18 +42,65 @@ export function lookup(points, position) {
     if (points[mid].position < position) low = mid + 1;
     else high = mid;
   }
-  return low === points.length ? points[0] : points[low];
+  // Running off the end means the position sits past the highest point, so it
+  // wraps to the lowest. That single fallback is the entire wraparound rule.
+  return low === points.length ? 0 : low;
+}
+
+export function lookup(points, position) {
+  if (points.length === 0) return null;
+  return points[lookupIndex(points, position)];
+}
+
+/**
+ * The first `replicationFactor` DISTINCT physical servers clockwise of a
+ * position -- how a real Dynamo-style store picks where to keep copies.
+ *
+ * "Distinct" is the whole subtlety. Walking the ring hits many points belonging
+ * to the same server (that is what virtual nodes are), and storing three copies
+ * on one machine defends against nothing. So we keep walking past repeats.
+ *
+ * Asking for more replicas than there are servers yields every server, which is
+ * the honest answer rather than an error: the cluster simply cannot hold more
+ * copies than it has machines.
+ */
+export function lookupReplicas(points, position, replicationFactor) {
+  if (points.length === 0) return [];
+  const start = lookupIndex(points, position);
+  const replicas = [];
+  const seen = new Set();
+  for (let step = 0; step < points.length && replicas.length < replicationFactor; step++) {
+    const { serverId } = points[(start + step) % points.length];
+    if (seen.has(serverId)) continue;
+    seen.add(serverId);
+    replicas.push(serverId);
+  }
+  return replicas;
 }
 
 /**
  * Consistent-hashing assignment: each key goes to the server owning the next
- * ring point clockwise. Returns Map<key, serverId>.
+ * ring point clockwise. Returns Map<key, serverId> -- the primary owner only.
  */
 export function assignConsistent(keys, points) {
   const assignment = new Map();
   if (points.length === 0) return assignment;
   for (const key of keys) {
     assignment.set(key, lookup(points, fnv1a(key)).serverId);
+  }
+  return assignment;
+}
+
+/**
+ * Full replica placement: Map<key, serverId[]>, primary first.
+ * At replicationFactor 1 this is assignConsistent wrapped in single-element
+ * arrays, so the unreplicated behaviour is a special case of this one.
+ */
+export function assignReplicas(keys, points, replicationFactor = 1) {
+  const assignment = new Map();
+  if (points.length === 0) return assignment;
+  for (const key of keys) {
+    assignment.set(key, lookupReplicas(points, fnv1a(key), replicationFactor));
   }
   return assignment;
 }

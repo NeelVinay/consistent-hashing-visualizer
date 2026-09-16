@@ -18,3 +18,23 @@ export function assignNaive(keys, serverIds) {
   }
   return assignment;
 }
+
+/**
+ * Naive modulo with replication: the primary is hash % N, and further copies go
+ * on the next servers by index, wrapping. Same idea as the ring's "next
+ * distinct server clockwise", except the ordering is the server list rather
+ * than a hash space -- which is exactly why changing N ruins it.
+ */
+export function assignNaiveReplicas(keys, serverIds, replicationFactor = 1) {
+  const assignment = new Map();
+  if (serverIds.length === 0) return assignment;
+  const copies = Math.min(replicationFactor, serverIds.length);
+  for (const key of keys) {
+    const primary = fnv1a(key) % serverIds.length;
+    assignment.set(
+      key,
+      Array.from({ length: copies }, (_, i) => serverIds[(primary + i) % serverIds.length]),
+    );
+  }
+  return assignment;
+}

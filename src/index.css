@@ -275,45 +275,6 @@ input[type='range']:focus-visible { outline: 2px solid var(--amber); outline-off
 .toggle input { accent-color: var(--amber); width: 14px; height: 14px; cursor: pointer; }
 .toggle:hover { color: var(--ink); }
 
-/* preset buttons carry a numeral in a bracket, like panel positions */
-.preset {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.6rem;
-  align-items: start;
-  width: 100%;
-  text-align: left;
-  background: var(--panel-2);
-  border: 1px solid var(--rule-hi);
-  padding: 0.6rem 0.7rem;
-  cursor: pointer;
-  transition: border-color 120ms, background 120ms;
-}
-.preset:hover { border-color: var(--amber-dim); background: #1b1f29; }
-.preset:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
-.preset[aria-pressed='true'] { border-color: var(--amber); }
-.preset .idx {
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  color: var(--amber);
-  padding-top: 0.05rem;
-}
-.preset .t {
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: 0.76rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink);
-  display: block;
-}
-.preset .d {
-  font-size: 0.74rem;
-  color: var(--ink-dim);
-  line-height: 1.35;
-  display: block;
-  margin-top: 0.15rem;
-}
 
 /* ---------- scope ---------- */
 
@@ -510,3 +471,117 @@ input[type='range']:disabled::-moz-range-thumb { background: var(--ink-faint); }
 
 /* keep the scope from crowding the verdict below it off the screen */
 .scope-wrap { max-width: 660px; margin: 0 auto; width: 100%; }
+
+/* ---------- guided steps (primary entry point) ---------- */
+
+.steps { display: flex; flex-direction: column; gap: 0; }
+
+.step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: start;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 1px solid var(--rule);
+  padding: 0.7rem 0.6rem;
+  cursor: pointer;
+  transition: background 130ms, border-color 130ms;
+}
+.step:last-child { border-bottom: 1px solid transparent; }
+.step:hover { background: #1a1f28; }
+.step:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
+.step[aria-pressed='true'] {
+  background: #1b202a;
+  border-color: var(--amber-dim);
+  border-left: 2px solid var(--amber);
+}
+
+/* the step number reads as a position in a sequence, not a bullet */
+.step-n {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink-faint);
+  border: 1px solid var(--rule-hi);
+  width: 1.6rem;
+  height: 1.6rem;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.step[aria-pressed='true'] .step-n {
+  color: #16120a;
+  background: var(--amber);
+  border-color: var(--amber);
+}
+
+.step-body { display: block; min-width: 0; }
+.step-title {
+  display: block;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.step-q {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--ink-dim);
+  line-height: 1.4;
+  margin-top: 0.15rem;
+}
+/* the measured result, so each step advertises its own payoff */
+.step-out {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--amber);
+  margin-top: 0.3rem;
+}
+
+/* ---------- experiment drawer (secondary) ---------- */
+
+.drawer > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.55rem 0.8rem;
+  background: var(--panel-2);
+  cursor: pointer;
+  list-style: none;
+}
+.drawer > summary::-webkit-details-marker { display: none; }
+.drawer > summary::after {
+  content: '+';
+  font-family: var(--mono);
+  color: var(--amber);
+  margin-left: 0.2rem;
+}
+.drawer[open] > summary { border-bottom: 1px solid var(--rule); }
+.drawer[open] > summary::after { content: '\2212'; }
+.drawer > summary:hover .label { color: var(--ink); }
+.drawer-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.drawer-head .label { white-space: nowrap; }
+.drawer-state {
+  font-size: 0.66rem;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.hint {
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+  line-height: 1.4;
+  margin: 0.45rem 0 0;
+}

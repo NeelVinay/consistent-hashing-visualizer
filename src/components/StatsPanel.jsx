@@ -12,10 +12,7 @@ function Readout({ label, value, sub, tone }) {
   );
 }
 
-/**
- * Per-server load. The dashed marker is where the server sat before the last
- * action, so a single row shows before and after at once.
- */
+/** Per-server load. The dashed marker is where the server sat before the last action. */
 function LoadBars({ serverIds, before, after, scale }) {
   const everyServer = [...new Set([...(before?.keys() ?? []), ...serverIds])];
 
@@ -64,78 +61,121 @@ function LoadBars({ serverIds, before, after, scale }) {
 }
 
 export default function StatsPanel({
-  mode, serverIds, vnodeCount, keyCount,
-  countsBefore, countsAfter, diff, absorbed, imbalance, lastAction,
+  mode, serverIds, vnodeCount, replicationFactor, keyCount,
+  countsBefore, countsAfter, diff, gained, imbalance, lastAction, orphanedCount,
 }) {
   const scale = Math.max(...countsAfter.values(), ...(countsBefore?.values() ?? [0]), 1);
-  const movedFraction = diff ? diff.movedCount / keyCount : null;
+  const replicated = replicationFactor > 1;
+  const heaviest = gained?.[0];
 
   return (
     <div className="stack">
       <section className="panel">
         <header>
           <span className="label">Readout</span>
-          <span className="label">{mode === 'naive' ? 'modulo' : `${vnodeCount} vnodes`}</span>
+          <span className="label">
+            {mode === 'naive' ? 'modulo' : `${vnodeCount} vnodes`}
+            {replicated && ` · rf ${replicationFactor}`}
+          </span>
         </header>
         <div className="readout-grid">
-          <Readout
-            label="Keys moved"
-            value={diff ? diff.movedCount : '--'}
-            sub={`of ${keyCount}`}
-            tone={movedFraction === null ? undefined : movedFraction > 0.5 ? 'hot' : 'cool'}
-          />
-          <Readout
-            label="Share remapped"
-            value={diff ? pct(movedFraction) : '--'}
-            sub={diff ? 'after last action' : 'no action yet'}
-            tone={movedFraction === null ? undefined : movedFraction > 0.5 ? 'hot' : 'cool'}
-          />
-          {mode === 'consistent' && lastAction === 'add' && absorbed?.length ? (
-            <Readout
-              label="Landed on"
-              value={absorbed[0].serverId.replace('server-', 'srv ')}
-              sub="the new server, as intended"
-              tone="cool"
-            />
+          {replicated ? (
+            <>
+              <Readout
+                label="Keys rerouted"
+                value={diff ? diff.primaryChangedCount : '--'}
+                sub="new primary owner"
+              />
+              <Readout
+                label="New copies needed"
+                value={diff ? diff.newCopies : '--'}
+                sub="actual data transfer"
+                tone={diff ? 'hot' : undefined}
+              />
+              <Readout
+                label="Keys lost"
+                value={diff ? orphanedCount : '--'}
+                sub={diff && orphanedCount === 0 ? 'nothing went dark' : 'no surviving copy'}
+                tone={!diff ? undefined : orphanedCount === 0 ? 'cool' : 'hot'}
+              />
+              <Readout
+                label="Heaviest share"
+                value={heaviest ? pct(heaviest.share) : '--'}
+                sub={heaviest ? `onto ${heaviest.serverId}` : 'of new copies'}
+                tone={!heaviest ? undefined : heaviest.share > 0.9 ? 'hot' : heaviest.share < 0.6 ? 'cool' : undefined}
+              />
+              <Readout
+                label="Load imbalance"
+                value={imbalance === Infinity ? '∞' : `${imbalance.toFixed(2)}×`}
+                sub="busiest / quietest"
+                tone={imbalance > 2 ? 'hot' : imbalance < 1.5 ? 'cool' : undefined}
+              />
+              <Readout
+                label="Copies stored"
+                value={keyCount * replicationFactor}
+                sub={`${keyCount} keys × ${replicationFactor}`}
+              />
+            </>
           ) : (
-            <Readout
-              label="Heaviest share"
-              value={absorbed?.length ? pct(absorbed[0].share) : '--'}
-              sub={absorbed?.length ? `onto ${absorbed[0].serverId}` : `${serverIds.length} servers, ${keyCount} keys`}
-              tone={
-                !absorbed?.length ? undefined
-                  : absorbed[0].share > 0.9 ? 'hot'
-                    : absorbed[0].share < 0.6 ? 'cool' : undefined
-              }
-            />
+            <>
+              <Readout
+                label="Keys moved"
+                value={diff ? diff.changedCount : '--'}
+                sub={`of ${keyCount}`}
+                tone={!diff ? undefined : diff.changedPct > 50 ? 'hot' : 'cool'}
+              />
+              <Readout
+                label="Share remapped"
+                value={diff ? `${diff.changedPct.toFixed(1)}%` : '--'}
+                sub={diff ? 'after last action' : 'no action yet'}
+                tone={!diff ? undefined : diff.changedPct > 50 ? 'hot' : 'cool'}
+              />
+              {mode === 'consistent' && lastAction === 'add' && heaviest ? (
+                <Readout
+                  label="Landed on"
+                  value={heaviest.serverId.replace('server-', 'srv ')}
+                  sub="the new server, as intended"
+                  tone="cool"
+                />
+              ) : (
+                <Readout
+                  label="Heaviest share"
+                  value={heaviest ? pct(heaviest.share) : '--'}
+                  sub={heaviest ? `onto ${heaviest.serverId}` : `${serverIds.length} servers, ${keyCount} keys`}
+                  tone={!heaviest ? undefined : heaviest.share > 0.9 ? 'hot' : heaviest.share < 0.6 ? 'cool' : undefined}
+                />
+              )}
+              <Readout
+                label="Load imbalance"
+                value={imbalance === Infinity ? '∞' : `${imbalance.toFixed(2)}×`}
+                sub="busiest / quietest"
+                tone={imbalance > 2 ? 'hot' : imbalance < 1.5 ? 'cool' : undefined}
+              />
+            </>
           )}
-          <Readout
-            label="Load imbalance"
-            value={imbalance === Infinity ? '∞' : `${imbalance.toFixed(2)}×`}
-            sub="busiest / quietest"
-            tone={imbalance > 2 ? 'hot' : imbalance < 1.5 ? 'cool' : undefined}
-          />
         </div>
       </section>
 
       <section className="panel">
         <header>
-          <span className="label">Load per server</span>
+          <span className="label">{replicated ? 'Copies held per server' : 'Load per server'}</span>
           <span className="label">dashed = before</span>
         </header>
         <div className="body">
           <LoadBars serverIds={serverIds} before={countsBefore} after={countsAfter} scale={scale} />
 
-          {absorbed && absorbed.length > 0 && (
+          {gained && gained.length > 0 && (
             <div className="spread-note">
-              {diff.movedCount} moved keys {mode === 'naive' ? 'scattered across' : 'absorbed by'}{' '}
-              {absorbed.map((a, i) => (
-                <span key={a.serverId}>
+              {replicated
+                ? `${diff.newCopies} new copies to make, landing on `
+                : `${diff.changedCount} moved keys ${mode === 'naive' ? 'scattered across' : 'absorbed by'} `}
+              {gained.map((g, i) => (
+                <span key={g.serverId}>
                   {i > 0 && ', '}
-                  <b>{a.serverId}</b> {a.count} ({pct(a.share)})
+                  <b>{g.serverId}</b> {g.count} ({pct(g.share)})
                 </span>
               ))}
-              {absorbed.length === 1 && lastAction !== 'add' && (
+              {gained.length === 1 && lastAction !== 'add' && (
                 <>
                   {' '}&mdash; <b>all of it onto one server.</b>
                 </>
